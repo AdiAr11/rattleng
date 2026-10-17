@@ -14,6 +14,12 @@ struct _MyApplication {
 
 G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
 
+// Called when the first Flutter frame is received.
+
+static void first_frame_cb(MyApplication* self, FlView* view) {
+  gtk_widget_show(gtk_widget_get_toplevel(GTK_WIDGET(view)));
+}
+
 // Implements GApplication::activate.
 static void my_application_activate(GApplication* application) {
   MyApplication* self = MY_APPLICATION(application);
@@ -47,8 +53,13 @@ static void my_application_activate(GApplication* application) {
     gtk_window_set_title(window, "rattle");
   }
 
+  // The window is not shown here. Showing it now displays it at this default
+  // size, only for `lib/main.dart` to then resize it to the size remembered
+  // from the last session, a visible flash on startup (#1004). The window is
+  // instead shown once Flutter renders its first frame, by which time the
+  // remembered size has been applied.
+
   gtk_window_set_default_size(window, 1300, 850);
-  gtk_widget_show(GTK_WIDGET(window));
 
   g_autoptr(FlDartProject) project = fl_dart_project_new();
   fl_dart_project_set_dart_entrypoint_arguments(project, self->dart_entrypoint_arguments);
@@ -83,6 +94,15 @@ static void my_application_activate(GApplication* application) {
   FlView* view = fl_view_new(project);
   gtk_widget_show(GTK_WIDGET(view));
   gtk_container_add(GTK_CONTAINER(window), GTK_WIDGET(view));
+
+  // Show the window when Flutter renders, as the current Flutter runner
+  // template does. The view must be realized for rendering to start, and so
+  // for the Dart code to run at all. Simply dropping the gtk_widget_show() of
+  // the window, without this, leaves a 20x20 window that is never shown.
+
+  g_signal_connect_swapped(view, "first-frame", G_CALLBACK(first_frame_cb),
+                           self);
+  gtk_widget_realize(GTK_WIDGET(view));
 
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));
 

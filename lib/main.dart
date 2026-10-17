@@ -285,8 +285,13 @@ Future<void> main([List<String> args = const []]) async {
 
     // The window should be on top now, so show the window, give it focus, and
     // then turn always on top off.
+    //
+    // This is awaited so that the remembered size is applied before runApp()
+    // renders the first frame. On Linux the window is first shown on that
+    // frame (see `linux/my_application.cc`), so it then appears at the
+    // remembered size rather than flashing up at the default size (#1004).
 
-    windowManager.waitUntilReadyToShow(windowOptions, () async {
+    await windowManager.waitUntilReadyToShow(windowOptions, () async {
       await windowManager.show();
       await windowManager.focus();
       await windowManager.setAlwaysOnTop(false);
